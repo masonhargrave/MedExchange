@@ -1,2 +1,4 @@
 Flask
 SQLAlchemy
+requests
+python_jose
