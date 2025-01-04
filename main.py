@@ -98,7 +98,7 @@ def requires_auth(f):
         try:
             # Fetch JWKS
             jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
-            jwks_data = requests.get(jwks_url).json()
+            jwks_data = requests.get(jwks_url, timeout=10).json()
             unverified_header = jwt.get_unverified_header(token)
 
             # Find the matching RSA key
@@ -227,4 +227,5 @@ def get_trades():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Set debug dynamically based on the environment
+    app.run(debug=os.getenv("FLASK_ENV", "development") == "development")

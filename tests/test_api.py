@@ -26,6 +26,7 @@ def valid_token():
             "audience": os.environ["AUTH0_API_AUDIENCE"],
             "grant_type": "client_credentials",
         },
+        timeout=10,
     )
     assert response.status_code == 200, "Failed to retrieve Auth0 token"
     return response.json()["access_token"]
