@@ -11,8 +11,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 import config
-from database import engine, SessionLocal, Base
-from db_models import DbOrder, DbTrade
+from database import engine, Base
 from models import Order
 from order_book import OrderBook
 

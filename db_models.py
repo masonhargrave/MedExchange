@@ -1,8 +1,7 @@
 # db_models.py
 
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float
 from database import Base
-import uuid
 import time
 
 
