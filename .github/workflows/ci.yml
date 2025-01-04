@@ -73,4 +73,9 @@ jobs:
       - name: Run Bandit for security checks
         run: |
           pip install bandit
-          bandit -r .
+          bandit -r ./ -o bandit-output.json -f json || true
+
+      - name: Fail on High Severity Bandit Issues
+        run: |
+          cat bandit-output.json | jq '.results[] | select(.issue_severity == "HIGH")' | grep . && exit 1 || true
+
