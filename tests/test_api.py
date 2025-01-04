@@ -4,8 +4,17 @@ import requests
 import pytest
 from main import app
 
-# Load environment variables
-load_dotenv()
+# Load .env for local development
+if os.path.exists(".env"):
+    load_dotenv()
+
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_API_AUDIENCE = os.getenv("AUTH0_API_AUDIENCE")
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
+
+if not all([AUTH0_DOMAIN, AUTH0_API_AUDIENCE, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET]):
+    raise EnvironmentError("Missing one or more required Auth0 environment variables.")
 
 
 @pytest.fixture

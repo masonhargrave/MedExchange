@@ -2,3 +2,4 @@ Flask
 SQLAlchemy
 requests
 python_jose
+python-dotenv
