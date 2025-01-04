@@ -1,24 +1,33 @@
 # main.py
 
 import os
-import json
 import requests
-from functools import wraps
-
 from flask import Flask, request, jsonify, g
+from functools import wraps
 from jose import jwt
 from werkzeug.exceptions import HTTPException
 
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+import config
 from database import engine, SessionLocal, Base
 from db_models import DbOrder, DbTrade
 from models import Order
 from order_book import OrderBook
 
-app = Flask(__name__)
 Base.metadata.create_all(bind=engine)
 
-# In-memory order book
-order_book = OrderBook()
+app = Flask(__name__)
+app.config.from_object(config.get_config())
+
+storage_uri = os.environ.get("RATE_LIMIT_STORAGE_URI", "memory://")
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    storage_uri=storage_uri,
+    default_limits=app.config["RATE_LIMITS"],
+)
 
 AUTH0_DOMAIN = os.environ.get("AUTH0_DOMAIN", "dev-57rb7zxhlau7kh8o.us.auth0.com")
 API_AUDIENCE = os.environ.get("AUTH0_API_AUDIENCE", "https://medexchange")
@@ -77,30 +86,39 @@ def get_token_auth_header():
             401,
         )
 
-    token = parts[1]
-    return token
+    return parts[1]
 
 
 def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = get_token_auth_header()
+        print(f"Token received: {token}")  # Debugging
+
         try:
+            # Fetch JWKS
             jwks_url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
             jwks_data = requests.get(jwks_url).json()
             unverified_header = jwt.get_unverified_header(token)
-            rsa_key = {}
-            for key in jwks_data["keys"]:
-                if key["kid"] == unverified_header["kid"]:
-                    rsa_key = {
+
+            # Find the matching RSA key
+            rsa_key = next(
+                (
+                    {
                         "kty": key["kty"],
                         "kid": key["kid"],
                         "use": key["use"],
                         "n": key["n"],
                         "e": key["e"],
                     }
-                    break
+                    for key in jwks_data["keys"]
+                    if key["kid"] == unverified_header["kid"]
+                ),
+                None,
+            )
+
             if not rsa_key:
+                print("RSA key not found")  # Debugging
                 raise AuthError(
                     {
                         "code": "invalid_header",
@@ -109,6 +127,7 @@ def requires_auth(f):
                     401,
                 )
 
+            # Validate and decode the token
             payload = jwt.decode(
                 token,
                 rsa_key,
@@ -116,19 +135,22 @@ def requires_auth(f):
                 audience=API_AUDIENCE,
                 issuer=f"https://{AUTH0_DOMAIN}/",
             )
+            print(f"Token payload: {payload}")  # Debugging
+
         except jwt.ExpiredSignatureError:
             raise AuthError(
-                {"code": "token_expired", "description": "token is expired"}, 401
+                {"code": "token_expired", "description": "Token is expired"}, 401
             )
         except jwt.JWTClaimsError:
             raise AuthError(
                 {
                     "code": "invalid_claims",
-                    "description": "incorrect claims. please check the audience and issuer",
+                    "description": "Incorrect claims. Check audience and issuer.",
                 },
                 401,
             )
-        except Exception:
+        except Exception as e:
+            print(f"JWT validation error: {e}")  # Debugging
             raise AuthError(
                 {
                     "code": "invalid_header",
@@ -137,29 +159,43 @@ def requires_auth(f):
                 401,
             )
 
-        g.top.current_user = payload
+        g.current_user = payload
         return f(*args, **kwargs)
 
     return decorated
 
 
-@app.route("/", methods=["GET"])
+order_book = OrderBook()
+
+
+@app.route("/")
+@limiter.exempt
 def index():
-    return jsonify({"message": "Welcome to MedExchange with Auth0-secured endpoints!"})
+    return jsonify(
+        {
+            "message": "MedExchange: Auth0-protected endpoints with rate limiting",
+            "environment": os.environ.get("FLASK_ENV", "development"),
+            "rate_limits": app.config["RATE_LIMITS"],
+        }
+    )
 
 
 @app.route("/orders", methods=["POST"])
 @requires_auth
+@limiter.limit("10/minute")
 def create_order():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Invalid input"}), 400
+
     user_id = data.get("user_id")
     side = data.get("side")
     price = data.get("price")
     quantity = data.get("quantity")
+
     if not all([user_id, side, price, quantity]):
         return jsonify({"error": "Missing required fields"}), 400
+
     new_order = Order(
         order_id=os.urandom(16).hex(),
         user_id=user_id,
