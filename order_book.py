@@ -2,7 +2,6 @@
 
 from typing import List
 import uuid
-from sqlalchemy.orm import Session
 
 from models import Order, Trade
 from db_models import DbOrder, DbTrade
@@ -51,7 +50,8 @@ class OrderBook:
 
     def _match_buy(self, buy_order: Order) -> List[Trade]:
         """
-        Match a BUY order against the best available SELL orders in ascending price order.
+        Match a BUY order against the best available SELL orders
+        in ascending price order.
 
         :param buy_order: The BUY Order object to be matched.
         :return: A list of executed Trade objects from this matching session.
@@ -106,7 +106,8 @@ class OrderBook:
 
     def _match_sell(self, sell_order: Order) -> List[Trade]:
         """
-        Match a SELL order against the best available BUY orders in descending price order.
+        Match a SELL order against the best available
+        BUY orders in descending price order.
 
         :param sell_order: The SELL Order object to be matched.
         :return: A list of executed Trade objects from this matching session.
@@ -200,7 +201,7 @@ class OrderBook:
                 db.commit()
             except Exception as e:
                 db.rollback()
-            logger.error(f"Error inserting trade {trade.trade_id} in DB: {e}")
+                logger.error(f"Error inserting trade {trade.trade_id} in DB: {e}")
 
     def get_order_book(self):
         """

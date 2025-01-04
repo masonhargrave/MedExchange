@@ -138,7 +138,7 @@ def requires_auth(f):
 
         except jwt.ExpiredSignatureError:
             raise AuthError(
-                {"code": "token_expired", "description": "Token is expired"}, 401
+                {"code": "token_expired", "description": "Token is expired"}, 401,
             )
         except jwt.JWTClaimsError:
             raise AuthError(

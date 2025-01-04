@@ -1,4 +1,3 @@
-import pytest
 from order_book import OrderBook
 from models import Order
 
@@ -11,7 +10,7 @@ def test_add_buy_order_no_match():
     """
     ob = OrderBook()
     buy_order = Order(
-        order_id="test_buy_1", user_id="UserA", side="BUY", price=100.0, quantity=10
+        order_id="test_buy_1", user_id="UserA", side="BUY", price=100.0, quantity=10,
     )
 
     trades = ob.add_order(buy_order)
@@ -31,7 +30,7 @@ def test_add_sell_order_no_match():
     """
     ob = OrderBook()
     sell_order = Order(
-        order_id="test_sell_1", user_id="UserB", side="SELL", price=105.0, quantity=5
+        order_id="test_sell_1", user_id="UserB", side="SELL", price=105.0, quantity=5,
     )
 
     trades = ob.add_order(sell_order)
@@ -52,13 +51,13 @@ def test_buy_and_sell_match_exact():
 
     # Add BUY
     buy_order = Order(
-        order_id="test_buy_2", user_id="UserA", side="BUY", price=100.0, quantity=5
+        order_id="test_buy_2", user_id="UserA", side="BUY", price=100.0, quantity=5,
     )
     ob.add_order(buy_order)
 
     # Add SELL that matches (SELL price <= BUY price)
     sell_order = Order(
-        order_id="test_sell_2", user_id="UserB", side="SELL", price=100.0, quantity=5
+        order_id="test_sell_2", user_id="UserB", side="SELL", price=100.0, quantity=5,
     )
     trades = ob.add_order(sell_order)
 
@@ -84,13 +83,13 @@ def test_partial_fill():
 
     # BUY 10 @ 100
     buy_order = Order(
-        order_id="buy_partial", user_id="UserA", side="BUY", price=100.0, quantity=10
+        order_id="buy_partial", user_id="UserA", side="BUY", price=100.0, quantity=10,
     )
     ob.add_order(buy_order)
 
     # SELL 6 @ 95
     sell_order = Order(
-        order_id="sell_partial", user_id="UserB", side="SELL", price=95.0, quantity=6
+        order_id="sell_partial", user_id="UserB", side="SELL", price=95.0, quantity=6,
     )
     trades = ob.add_order(sell_order)
 

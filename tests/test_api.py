@@ -48,7 +48,12 @@ def test_create_order_with_auth(client, valid_token):
     headers = {"Authorization": f"Bearer {valid_token}"}
     response = client.post(
         "/orders",
-        json={"user_id": "Alice", "side": "BUY", "price": 100.0, "quantity": 10},
+        json={
+            "user_id": "Alice",
+            "side": "BUY",
+            "price": 100.0,
+            "quantity": 10,
+        },
         headers=headers,
     )
     assert response.status_code == 200
@@ -61,7 +66,12 @@ def test_create_order_without_auth(client):
     """Test creating an order without JWT"""
     response = client.post(
         "/orders",
-        json={"user_id": "Alice", "side": "BUY", "price": 100.0, "quantity": 10},
+        json={
+            "user_id": "Alice",
+            "side": "BUY",
+            "price": 100.0,
+            "quantity": 10,
+        },
     )
     assert response.status_code == 401
     data = response.get_json()
@@ -78,7 +88,12 @@ def test_rate_limiting(client, valid_token):
     for i in range(9):
         response = client.post(
             "/orders",
-            json={"user_id": "Bob", "side": "SELL", "price": 95.0, "quantity": 5},
+            json={
+                "user_id": "Bob",
+                "side": "SELL",
+                "price": 95.0,
+                "quantity": 5,
+            },
             headers=headers,
         )
         assert response.status_code == 200, f"Request {i + 1} failed unexpectedly"
