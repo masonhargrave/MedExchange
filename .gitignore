@@ -1,0 +1,7 @@
+.env
+.DS_Store
+__pycache__/
+*.pycecho ".DS_Store" >> ../.gitignore
+git add ../.gitignore
+git commit -m "Add .DS_Store to .gitignore"
+.DS_Store
