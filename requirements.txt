@@ -3,3 +3,4 @@ SQLAlchemy
 requests
 python_jose
 python-dotenv
+flask_limiter
