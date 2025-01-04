@@ -11,12 +11,28 @@ from logger import logger
 
 
 class OrderBook:
+    """
+    Manages in-memory orders and performs matching between BUY and SELL orders.
+    Provides methods for persisting order and trade data to the database.
+    """
+
     def __init__(self):
+        """
+        Initialize the OrderBook with empty in-memory lists for buy orders,
+        sell orders, and a trade history.
+        """
         self.buy_orders: List[Order] = []
         self.sell_orders: List[Order] = []
         self.trade_history: List[Trade] = []
 
     def add_order(self, order: Order) -> List[Trade]:
+        """
+        Add an order to the order book. If it matches any existing orders
+        (depending on side and price), create trade records.
+
+        :param order: An Order object to be added or matched.
+        :return: A list of Trade objects executed by this operation.
+        """
         logger.info(f"New order received: {order}")
         if order.side.upper() == "BUY":
             trades = self._match_buy(order)
@@ -34,6 +50,12 @@ class OrderBook:
         return trades
 
     def _match_buy(self, buy_order: Order) -> List[Trade]:
+        """
+        Match a BUY order against the best available SELL orders in ascending price order.
+
+        :param buy_order: The BUY Order object to be matched.
+        :return: A list of executed Trade objects from this matching session.
+        """
         trades_executed = []
         while (
             buy_order.quantity > 0
@@ -58,7 +80,7 @@ class OrderBook:
             buy_order.quantity -= trade_qty
             best_sell.quantity -= trade_qty
 
-            logger.info(
+            logger.debug(
                 f"Matching BUY: {buy_order.order_id} fills {trade_qty} "
                 f"against SELL: {best_sell.order_id} at price {trade_price}"
             )
@@ -83,6 +105,12 @@ class OrderBook:
         return trades_executed
 
     def _match_sell(self, sell_order: Order) -> List[Trade]:
+        """
+        Match a SELL order against the best available BUY orders in descending price order.
+
+        :param sell_order: The SELL Order object to be matched.
+        :return: A list of executed Trade objects from this matching session.
+        """
         trades_executed = []
         while (
             sell_order.quantity > 0
@@ -107,7 +135,7 @@ class OrderBook:
             sell_order.quantity -= trade_qty
             best_buy.quantity -= trade_qty
 
-            logger.info(
+            logger.debug(
                 f"Matching SELL: {sell_order.order_id} fills {trade_qty} "
                 f"against BUY: {best_buy.order_id} at price {trade_price}"
             )
@@ -132,58 +160,65 @@ class OrderBook:
 
     def _save_or_update_order(self, order: Order) -> None:
         """
-        Upserts (merges) the given order into the database
-        with its latest quantity.
+        Perform an upsert (merge) for the given Order object in the database.
         """
         if not order.order_id:
             return
 
-        db: Session = SessionLocal()
-        try:
-            db_order = DbOrder(
-                id=order.order_id,
-                user_id=order.user_id,
-                side=order.side,
-                price=order.price,
-                quantity=order.quantity,
-                timestamp=order.timestamp,
-            )
-            db.merge(db_order)
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error updating order {order.order_id} in DB: {e}")
-        finally:
-            db.close()
+        with SessionLocal() as db:
+            try:
+                db_order = DbOrder(
+                    id=order.order_id,
+                    user_id=order.user_id,
+                    side=order.side,
+                    price=order.price,
+                    quantity=order.quantity,
+                    timestamp=order.timestamp,
+                )
+                db.merge(db_order)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Error updating order {order.order_id} in DB: {e}")
 
     def _save_trade(self, trade: Trade) -> None:
         """
-        Inserts or updates a trade record in the database.
+        Insert or merge the given Trade object in the database.
         """
-        db: Session = SessionLocal()
-        try:
-            logger.debug(f"Saving trade {trade.trade_id} to DB.")
-            db_trade = DbTrade(
-                id=trade.trade_id,
-                buy_order_id=trade.buy_order_id,
-                sell_order_id=trade.sell_order_id,
-                price=trade.price,
-                quantity=trade.quantity,
-                timestamp=trade.timestamp,
-            )
-            db.merge(db_trade)  # Avoid duplicate insertion errors
-            db.commit()
-        except Exception as e:
-            db.rollback()
+        with SessionLocal() as db:
+            try:
+                logger.debug(f"Saving trade {trade.trade_id} to DB.")
+                db_trade = DbTrade(
+                    id=trade.trade_id,
+                    buy_order_id=trade.buy_order_id,
+                    sell_order_id=trade.sell_order_id,
+                    price=trade.price,
+                    quantity=trade.quantity,
+                    timestamp=trade.timestamp,
+                )
+                db.merge(db_trade)  # Avoid duplicate insertion errors
+                db.commit()
+            except Exception as e:
+                db.rollback()
             logger.error(f"Error inserting trade {trade.trade_id} in DB: {e}")
-        finally:
-            db.close()
 
     def get_order_book(self):
+        """
+        Retrieve the current state of the in-memory order book.
+
+        :return: A dictionary with "buy_orders" and "sell_orders" keys,
+                 each containing a list of order dictionaries.
+        """
+
         return {
             "buy_orders": [o.__dict__ for o in self.buy_orders],
             "sell_orders": [o.__dict__ for o in self.sell_orders],
         }
 
     def get_trade_history(self):
+        """
+        Retrieve the in-memory trade history.
+
+        :return: A list of trade dictionaries representing all trades executed so far.
+        """
         return [t.__dict__ for t in self.trade_history]
